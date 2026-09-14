@@ -14,10 +14,10 @@ away.
 | Console encoding | [#217](https://github.com/bradautomates/claude-video/pull/217) | `watch.py` and `setup.py` crash with `UnicodeEncodeError` on Windows consoles whose codepage cannot encode em dashes (cp1252, cp949, ...). |
 | Prefer manual captions | [#221](https://github.com/bradautomates/claude-video/pull/221) | The caption picker sorted by filename, so an auto-generated track beat a human-authored one. Auto-captions are ~2.6x the tokens, unpunctuated, and mistranscribe proper nouns. |
 
-Patched lines are marked in place:
+Each fix is one commit, so `git log` is the index:
 
 ```bash
-grep -rn "local patch (upstream PR" skills/
+git log --oneline 83da59f..main
 ```
 
 ## Install

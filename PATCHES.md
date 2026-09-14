@@ -13,6 +13,7 @@ away.
 | `-vsync` → `-fps_mode` | [#216](https://github.com/bradautomates/claude-video/pull/216) | `-vsync` was removed in ffmpeg 8. Without this, frame extraction fails outright on ffmpeg 8+ and `/watch` returns nothing. |
 | Console encoding | [#217](https://github.com/bradautomates/claude-video/pull/217) | `watch.py` and `setup.py` crash with `UnicodeEncodeError` on Windows consoles whose codepage cannot encode em dashes (cp1252, cp949, ...). |
 | Prefer manual captions | [#221](https://github.com/bradautomates/claude-video/pull/221) | The caption picker sorted by filename, so an auto-generated track beat a human-authored one. Auto-captions are ~2.6x the tokens, unpunctuated, and mistranscribe proper nouns. |
+| Flag hallucinated transcripts | [#222](https://github.com/bradautomates/claude-video/issues/222) (issue) | Whisper invents dialogue over music or silence and the report presented it as a normal transcript. Now labelled low-confidence, using the `no_speech_prob` that `verbose_json` already returned and the code discarded. |
 
 Each fix is one commit, so `git log` is the index:
 

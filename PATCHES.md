@@ -1,37 +1,59 @@
 # Patches in this fork
 
-Fork of [bradautomates/claude-video](https://github.com/bradautomates/claude-video)
-carrying fixes that are open upstream but not yet merged. Upstream's `main` has
-had no commits since 2026-06-30 and has never merged a pull request, so this
-fork exists to make the skill usable in the meantime.
+**This fork is retired.** Every fix it carried has landed in
+[frinsen/claude-video](https://github.com/frinsen/claude-video), which also
+fixes the three problems this fork left open. Install that one instead:
 
-Every change here is also filed upstream. If those land, this fork should go
-away.
+```bash
+claude plugin marketplace add frinsen/claude-video
+claude plugin install watch@claude-video
+```
 
-| Fix | Upstream PR | Why |
+Upstream [bradautomates/claude-video](https://github.com/bradautomates/claude-video)
+is still dormant — no commits since 2026-06-30, still zero merged pull
+requests — so the fixes reached users through that fork rather than through
+upstream.
+
+This repository stays up because the four pull requests below are still open
+against upstream and point at its branches. Nothing installs from it any more.
+
+## Where each fix went
+
+| Fix | Upstream PR | Disposition in frinsen/claude-video |
 |---|---|---|
-| `-vsync` → `-fps_mode` | [#216](https://github.com/bradautomates/claude-video/pull/216) | `-vsync` was removed in ffmpeg 8. Without this, frame extraction fails outright on ffmpeg 8+ and `/watch` returns nothing. |
-| Console encoding | [#217](https://github.com/bradautomates/claude-video/pull/217) | `watch.py` and `setup.py` crash with `UnicodeEncodeError` on Windows consoles whose codepage cannot encode em dashes (cp1252, cp949, ...). |
-| Prefer manual captions | [#221](https://github.com/bradautomates/claude-video/pull/221) | The caption picker sorted by filename, so an auto-generated track beat a human-authored one. Auto-captions are ~2.6x the tokens, unpunctuated, and mistranscribe proper nouns. |
-| Rank `en-orig` above `en` | [#221](https://github.com/bradautomates/claude-video/pull/221) (follow-up) | Among auto tracks `en-orig` is the source-language ASR output and bare `en` is YouTube's translation target. Reported by [@robinjose911](https://github.com/bradautomates/claude-video/pull/221#issuecomment-5749725319); this fork now diverges from #221 as filed, which ranked `en` first. |
-| Flag hallucinated transcripts | [#222](https://github.com/bradautomates/claude-video/issues/222) (issue) | Whisper invents dialogue over music or silence and the report presented it as a normal transcript. Now labelled low-confidence, using the `no_speech_prob` that `verbose_json` already returned and the code discarded. |
+| Flag hallucinated transcripts | [#223](https://github.com/bradautomates/claude-video/pull/223) | **merged as authored** — `assess_speech()` and the retained `no_speech_prob` / `avg_logprob` |
+| Prefer manual captions | [#221](https://github.com/bradautomates/claude-video/pull/221) | **adapted** — human-over-auto is the top rule of its caption picker |
+| `-vsync` → `-fps_mode` | [#216](https://github.com/bradautomates/claude-video/pull/216) | **duplicate** — same fix taken from #219, and improved: it probes ffmpeg and falls back to `-vsync` on older builds |
+| Console encoding | [#217](https://github.com/bradautomates/claude-video/pull/217) | **duplicate** — same fix taken from #192 |
 
-Each fix is one commit, so `git log` is the index:
+Dispositions are that fork's own, recorded in its
+[UPSTREAM.md](https://github.com/frinsen/claude-video/blob/main/UPSTREAM.md)
+ledger; authorship is credited in
+[AUTHORS.md](https://github.com/frinsen/claude-video/blob/main/AUTHORS.md).
 
-```bash
-git log --oneline 83da59f..main
-```
+One commit here was never filed upstream: `c5836df` ranks `en-orig` above `en`
+among auto caption tracks, after [@robinjose911 pointed out the
+ordering](https://github.com/bradautomates/claude-video/pull/221#issuecomment-5749725319).
+It turned out to fix nothing reachable — `-orig` marks the *source* language,
+so `en-orig` exists only on English-source videos, where the two tracks are
+byte-identical. The other fork reaches the same outcome by ranking the target
+language's `-orig` track ahead of everything else.
 
-## Install
+## What this fork never fixed
 
-```bash
-claude plugin marketplace add oheewono/claude-video
-claude plugin install watch@claude-video-patched
-```
+All three are fixed in frinsen/claude-video.
 
-Uninstall the upstream plugin first if you have it — both provide `/watch`.
+- **Non-English videos got machine-translated captions.** `--sub-langs` was
+  hardcoded to `en.*`, so a Korean video returned YouTube's English
+  translation and never its own track. The upstream complaint is #123, #144
+  and #153. That fork detects the video's language and fetches
+  `<lang>,<lang>-orig,<lang>-[A-Za-z][A-Za-z]`.
+- **NTFS ACL permission warning** ([#107](https://github.com/bradautomates/claude-video/issues/107)).
+  `st_mode` does not reflect NTFS ACLs, so the check warned on every session
+  even with a correctly locked-down file. That fork skips the check on Windows.
+- **Two static-clip dedup tests failed on ffmpeg 9**
+  (`test_dedup_collapses_static_by_default`, `test_no_dedup_preserves_static_frames`).
+  Fixed there via #175.
 
-## Known issues not fixed here
-
-- The NTFS ACL permission warning on Windows ([#107](https://github.com/bradautomates/claude-video/issues/107)). `st_mode` does not reflect NTFS ACLs, so the check warns even on a correctly locked-down file. Cosmetic.
-- Two static-clip dedup tests fail on ffmpeg 9 (`test_dedup_collapses_static_by_default`, `test_no_dedup_preserves_static_frames`). Not attributed to any of the above; flagged in #217.
+Measured 2026-09-22 on Windows 11 with ffmpeg 9: frinsen/claude-video runs 206
+tests with no failures; this fork's suite had 3 failures on the same machine.

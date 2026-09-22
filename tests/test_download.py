@@ -7,6 +7,7 @@ bounded to the English-only pattern.
 """
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -62,3 +63,63 @@ def test_download_url_requests_english_only(monkeypatch, tmp_path):
     with pytest.raises(SystemExit):
         download.download_url(URL, tmp_path / "download")
     _assert_english_only(_sub_langs(calls[0]))
+
+
+# --- caption picking -------------------------------------------------------
+#
+# Both manual and auto-generated tracks land as video.<lang>.vtt, so only
+# info.json can tell them apart. _pick_subtitle ranks on (manual?, lang).
+
+
+def _tracks(out_dir: Path, *langs: str) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for lang in langs:
+        (out_dir / f"video.{lang}.vtt").write_text(f"WEBVTT {lang}\n", encoding="utf-8")
+
+
+def _info(out_dir: Path, subtitles: dict | None) -> Path:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / "video.info.json"
+    payload: dict = {"title": "t"}
+    if subtitles is not None:
+        payload["subtitles"] = subtitles
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_manual_track_beats_auto(tmp_path):
+    out = tmp_path / "download"
+    _tracks(out, "en", "en-orig")
+    info = _info(out, {"en-GB": [{"ext": "vtt"}]})
+    _tracks(out, "en-GB")
+    picked = download._pick_subtitle(out, download._manual_sub_langs(info))
+    assert picked is not None and picked.name == "video.en-GB.vtt"
+
+
+def test_auto_prefers_orig_over_translated(tmp_path):
+    """en-orig is the source-language ASR track; bare en is the translation
+    target. Ranking en first would hand back a machine translation whenever a
+    source-language original sits next to it."""
+    out = tmp_path / "download"
+    _tracks(out, "en", "en-orig")
+    info = _info(out, {})
+    picked = download._pick_subtitle(out, download._manual_sub_langs(info))
+    assert picked is not None and picked.name == "video.en-orig.vtt"
+
+
+def test_manual_english_picked_when_only_track(tmp_path):
+    out = tmp_path / "download"
+    _tracks(out, "en")
+    info = _info(out, {"en": [{"ext": "vtt"}]})
+    picked = download._pick_subtitle(out, download._manual_sub_langs(info))
+    assert picked is not None and picked.name == "video.en.vtt"
+
+
+def test_no_tracks_returns_none(tmp_path):
+    out = tmp_path / "download"
+    out.mkdir(parents=True)
+    assert download._pick_subtitle(out, set()) is None
+
+
+def test_missing_info_json_yields_no_manual_langs(tmp_path):
+    assert download._manual_sub_langs(tmp_path / "video.info.json") == set()
